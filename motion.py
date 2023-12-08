@@ -1,16 +1,11 @@
 from openai import OpenAI
 from playsound import playsound
-from io import BytesIO
 import modules.cv2_stream as cv2_stream
-import base64
 import os
 
-client = OpenAI()
+import modules.helpers as helpers
 
-def image_b64(image):
-    buffer = BytesIO()
-    image.save(buffer, format="JPEG")
-    return base64.b64encode(buffer.getvalue()).decode()
+client = OpenAI()
 
 stream_url = 'http://192.168.1.3:8080/video'
 
@@ -31,7 +26,7 @@ for collage in cv2_stream.detect_changes(stream_url):
         "content": [
             {
                 "type": "image_url",
-                "image_url": f"data:image/jpeg;base64,{image_b64(collage)}"
+                "image_url": f"data:image/jpeg;base64,{helpers.image_b64(collage)}"
             }
         ]
     })

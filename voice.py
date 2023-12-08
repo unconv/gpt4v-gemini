@@ -9,28 +9,9 @@ import os
 import re
 
 import modules.recorder as recorder
+import modules.helpers as helpers
 
 client = OpenAI()
-
-def image_b64(image):
-    with open(image, "rb") as f:
-        return base64.b64encode(f.read()).decode()
-
-def filter_garbage(message):
-    if re.sub(r"[^a-z0-9]", "", message) == "":
-        return False
-
-    if message.count(",") / len(message) > 0.1:
-        return False
-
-    if message.strip().strip(",!?") in ["mm-hmm,", "cough,", "tshh,", "pfft,", "swoosh,"]:
-        return False
-
-    for word in ["mm-hmm,", "cough,", "tshh,", "pfft,", "swoosh,"]:
-        if word in message:
-            return False
-
-    return True
 
 stream_url = 'http://192.168.1.3:8080/video'
 
@@ -50,7 +31,7 @@ video_process.start()
 
 while True:
     for message in recorder.live_speech(60):
-        if filter_garbage(message):
+        if helpers.filter_garbage(message):
             break
 
         print("You: " + message)
@@ -63,7 +44,7 @@ while True:
                 "content": [
                     {
                         "type": "image_url",
-                        "image_url": f"data:image/jpeg;base64,{image_b64('detect.jpg')}",
+                        "image_url": f"data:image/jpeg;base64,{helpers.image_b64('detect.jpg')}",
                     },
                     {
                         "type": "text",
