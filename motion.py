@@ -1,6 +1,6 @@
-from openai import OpenAI
-from playsound import playsound
 import modules.cv2_stream as cv2_stream
+from playsound import playsound
+from openai import OpenAI
 import os
 
 import modules.helpers as helpers

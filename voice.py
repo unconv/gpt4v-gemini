@@ -1,12 +1,9 @@
-from multiprocessing import Process
-from openai import OpenAI
-from playsound import playsound
-import shutil
 import modules.cv2_stream as cv2_stream
-import base64
-import time
+from multiprocessing import Process
+from playsound import playsound
+from openai import OpenAI
+import shutil
 import os
-import re
 
 import modules.recorder as recorder
 import modules.helpers as helpers
