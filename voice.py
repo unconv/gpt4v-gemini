@@ -1,0 +1,110 @@
+from multiprocessing import Process
+from openai import OpenAI
+from playsound import playsound
+import shutil
+import modules.cv2_stream as cv2_stream
+import base64
+import time
+import os
+import re
+
+import modules.recorder as recorder
+
+client = OpenAI()
+
+def image_b64(image):
+    with open(image, "rb") as f:
+        return base64.b64encode(f.read()).decode()
+
+def filter_garbage(message):
+    if re.sub(r"[^a-z0-9]", "", message) == "":
+        return False
+
+    if message.count(",") / len(message) > 0.1:
+        return False
+
+    if message.strip().strip(",!?") in ["mm-hmm,", "cough,", "tshh,", "pfft,", "swoosh,"]:
+        return False
+
+    for word in ["mm-hmm,", "cough,", "tshh,", "pfft,", "swoosh,"]:
+        if word in message:
+            return False
+
+    return True
+
+stream_url = 'http://192.168.1.3:8080/video'
+
+messages = [
+    {
+        "role": "system",
+        "content": """You are an AI assistant that can see. The photos provided to you are the view from your eyes. Answer the user based on what you see. The user is holding the camera. If you see them pointing to something and asking what it is, tell them what it is. Don't say what you're looking at is an image, unless the image sent to you is of a physical image. Answer in short, concise answers.""",
+    }
+]
+
+def write_changes():
+    for _ in cv2_stream.stream_frames(stream_url, "frame.jpg"):
+        pass
+
+video_process = Process(target=write_changes)
+video_process.start()
+
+while True:
+    for message in recorder.live_speech(60):
+        if filter_garbage(message):
+            break
+
+        print("You: " + message)
+
+        shutil.copy("frame.jpg", "detect.jpg")
+
+        try:
+            messages.append({
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": f"data:image/jpeg;base64,{image_b64('detect.jpg')}",
+                    },
+                    {
+                        "type": "text",
+                        "text": "Message transcribed from recording (might contain mistakes): " + message,
+                    }
+                ]
+            })
+
+            response = client.chat.completions.create(
+                messages=messages,
+                model="gpt-4-vision-preview",
+                max_tokens=1024
+            )
+
+            response_message = response.choices[0].message
+            response_text = response_message.content
+
+            messages.append(response_message)
+        except Exception as e:
+            print(str(e))
+            response_text = "Sorry, I missed that"
+            messages.append({
+                "role": "system",
+                "content": "The user sent an invalid message"
+            })
+            messages.append({
+                "role": "assistant",
+                "content": response_text
+            })
+
+        audio = client.audio.speech.create(
+            input=response_text,
+            model="tts-1",
+            voice="onyx",
+        )
+
+        audio.stream_to_file("audio.mp3")
+        print("GPT: " + response_text)
+        playsound("audio.mp3")
+        os.remove("audio.mp3")
+
+        break
+
+video_process.join() # i really wanna join, but I can't
