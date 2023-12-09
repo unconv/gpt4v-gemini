@@ -3,7 +3,7 @@ import numpy as np
 import math
 import cv2
 
-def make_collage(frames):
+def make_collage(frames, border=35):
     frame_count = len(frames)
 
     rows = 1
@@ -13,13 +13,13 @@ def make_collage(frames):
 
     try:
         image1 = Image.fromarray(frames[0])
-        collage = Image.new('RGB', (image1.width*per_row, image1.height*rows))
+        collage = Image.new('RGB', (image1.width*per_row+border*(per_row-1), image1.height*rows+border*(per_row-1)))
         collage.paste(image1, (0, 0))
     except OSError:
         print("Error saving collage...")
         return
 
-    pos_x = image1.width
+    pos_x = image1.width + border
     pos_y = 0
 
     for i, frame in enumerate(frames[1:]):
@@ -30,10 +30,10 @@ def make_collage(frames):
             print("Error adding changed frame...")
             continue
 
-        pos_x += image.width
+        pos_x += image.width + border
 
         if (i+2) % per_row == 0:
-            pos_y += image.height
+            pos_y += image.height + border
             pos_x = 0
 
     return collage
