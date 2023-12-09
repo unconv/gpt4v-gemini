@@ -17,8 +17,6 @@ messages = [
 ]
 
 for collage in cv2_stream.detect_changes(stream_url):
-    print("Change detected!")
-
     collage.save("collage.jpg", format="JPEG")
 
     messages.append({
@@ -40,7 +38,6 @@ for collage in cv2_stream.detect_changes(stream_url):
     response_message = response.choices[0].message
 
     if '{"status": "NO_CHANGE"}' in response_message.content:
-        print("No change...")
         messages.pop()
         continue
 
