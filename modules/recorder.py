@@ -8,7 +8,17 @@ whisper_model = whisper.load_model("base")
 ambient_detected = False
 speech_volume = 100
 
-def live_speech(wait_time=10):
+def transcribe(audio_file):
+    result = whisper_model.transcribe(
+        audio_file,
+        fp16=False,
+        no_speech_threshold=0.1,
+        initial_prompt="mm-hmm, cough, tshh, pfft, swoosh"
+    )
+
+    return result["text"].strip()
+
+def live_speech(wait_time=10, transcribe_audio=True, processing=None):
     global ambient_detected
     global speech_volume
 
@@ -50,6 +60,13 @@ def live_speech(wait_time=10):
                 ambient_detected = True
 
         if rms > speech_volume:
+            if not recording:
+                if processing:
+                    if processing.value == True:
+                        continue
+                    with processing.get_lock():
+                        processing.value = True
+                print("Voice detected!")
             recording = True
             frames_recorded = 0
         elif recording and frames_recorded > wait_time:
@@ -62,16 +79,14 @@ def live_speech(wait_time=10):
             wf.writeframes(b''.join(frames))
             wf.close()
 
-            result = whisper_model.transcribe(
-                "audio.wav",
-                fp16=False,
-                no_speech_threshold=0.1,
-                initial_prompt="mm-hmm, cough, tshh, pfft, swoosh"
-            )
+            if transcribe_audio:
+                result = transcribe("audio.wav")
 
-            os.remove("audio.wav")
+                os.remove("audio.wav")
 
-            yield result["text"].strip()
+                yield result
+            else:
+                yield "audio.wav"
 
             frames = []
 
