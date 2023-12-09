@@ -10,7 +10,7 @@ def filter_garbage(message):
     if message.count(",") / len(message) > 0.1:
         return True
 
-    if message.strip().strip(",!?") in ["mm-hmm,", "cough,", "tshh,", "pfft,", "swoosh,"]:
+    if message.strip().strip(",!?") in ["mm-hmm", "cough", "tshh", "pfft", "swoosh"]:
         return True
 
     for word in ["mm-hmm,", "cough,", "tshh,", "pfft,", "swoosh,"]:
