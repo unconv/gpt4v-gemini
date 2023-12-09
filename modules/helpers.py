@@ -1,5 +1,6 @@
 from io import BytesIO
 import base64
+import cv2
 import re
 
 def filter_garbage(message):
@@ -28,3 +29,13 @@ def image_b64(image):
         buffer = BytesIO()
         image.save(buffer, format="JPEG")
         return base64.b64encode(buffer.getvalue()).decode()
+
+def sharpness(image):
+    if isinstance(image, str):
+        image = cv2.imread(image)
+
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+    laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+
+    return laplacian.var()

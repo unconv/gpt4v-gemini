@@ -38,7 +38,7 @@ def make_collage(frames, border=35):
 
     return collage
 
-def detect_changes(stream_url, count=6):
+def detect_changes(stream_url, count=9, min_frames=5, big_movement_threshold=2, processing=None):
     # Create a VideoCapture object
     cap = cv2.VideoCapture(stream_url)
 
@@ -65,7 +65,10 @@ def detect_changes(stream_url, count=6):
     motion_counter = 0
     motions = {"0": []}
 
+    frame_counter = 0
+    big_movement = 0
     while cap.isOpened():
+        frame_counter += 1
         # Capture frame-by-frame
         ret, current_frame = cap.read()
         if not ret:
@@ -85,7 +88,14 @@ def detect_changes(stream_url, count=6):
         change_count = np.sum(thresh != 0)
 
         # If significant change is detected, save the frame
-        if change_count > 7000 and motion_counter: # Threshold for change, adjust as needed
+        if change_count > 8_000 and motion_counter: # Threshold for change, adjust as needed
+            if change_count > 80_000:
+                big_movement += 1
+
+            if processing:
+                with processing.get_lock():
+                    processing.value = True
+
             motions[str(motion_counter)].append(previous_frame_rgb)
             motions[str(motion_counter)].append(rgb_frame)
             still_frame_counter = 0
@@ -97,7 +107,29 @@ def detect_changes(stream_url, count=6):
         if still_frame_counter == 40:
             frames = motions[str(motion_counter)]
             frame_count = len(frames)
-            if frame_count:
+            if frame_count > min_frames and big_movement > big_movement_threshold:
+                if frame_count > count:
+                    sharp_frames = {}
+                    frame_num = 0
+
+                    while frame_count > 50:
+                        frames = frames[0::2]
+                        frame_count = len(frames)
+
+                    for i, frame in enumerate(frames):
+                        if str(frame_num) not in sharp_frames:
+                            sharp_frames[str(frame_num)] = (0, None)
+
+                        sharpness = helpers.sharpness(frame)
+                        if sharp_frames[str(frame_num)][0] < sharpness:
+                            sharp_frames[str(frame_num)] = (sharpness, frame)
+
+                        if i % int(frame_count / count) == 0:
+                            frame_num += 1
+                    frames = []
+                    for sharpness, frame in sharp_frames.values():
+                        frames.append(frame)
+                    frame_count = len(frames)
                 step = int(frame_count / count)
                 step = 1 if step < 1 else step
                 spread_out_frames = list(reversed(frames[-1::-step]))[-count:] # i no gud at math
@@ -106,6 +138,7 @@ def detect_changes(stream_url, count=6):
                 yield make_collage(spread_out_frames)
             motion_counter += 1
             motions[str(motion_counter)] = []
+            big_movement = 0
 
         # Update the previous frame
         previous_frame = gray_frame.copy()
