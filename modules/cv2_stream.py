@@ -3,6 +3,8 @@ import numpy as np
 import math
 import cv2
 
+import modules.helpers as helpers
+
 def make_collage(frames, border=35):
     frame_count = len(frames)
 
