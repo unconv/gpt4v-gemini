@@ -4,6 +4,8 @@ import pyaudio
 import wave
 import os
 
+from config import config
+
 whisper_model = whisper.load_model("base")
 ambient_detected = False
 speech_volume = 100
@@ -56,7 +58,7 @@ def live_speech(wait_time=10, transcribe_audio=True, processing=None, ui_queue=N
                 continue
             elif frames_recorded == 40:
                 print("Listening...")
-                speech_volume = speech_volume * 3
+                speech_volume = speech_volume * config["speech_threshold"]
                 ambient_detected = True
 
         if rms > speech_volume:

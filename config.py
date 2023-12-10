@@ -10,4 +10,7 @@ config = {
 
     # when to stop recording a long motion
     "automatic_motion_cutoff": 200,
+
+    # what level of audio is detected as speech
+    "speech_threshold": 3,
 }
