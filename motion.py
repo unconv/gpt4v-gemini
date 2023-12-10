@@ -17,6 +17,7 @@ messages = [
 ]
 
 for collage in cv2_stream.detect_changes(stream_url):
+    print("Motion detected!")
     collage.save("collage.jpg", format="JPEG")
 
     messages.append({
