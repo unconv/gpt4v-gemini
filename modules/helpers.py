@@ -1,5 +1,6 @@
 from io import BytesIO
 import base64
+import sys
 import cv2
 import re
 
@@ -39,3 +40,11 @@ def sharpness(image):
     laplacian = cv2.Laplacian(gray, cv2.CV_64F)
 
     return laplacian.var()
+
+def get_stream():
+    if len(sys.argv) < 2:
+        print("ERROR: No video stream provided")
+        print(f"Usage: {sys.argv[0]} VIDEO_STREAM_URL")
+        sys.exit(1)
+
+    return sys.argv[1]

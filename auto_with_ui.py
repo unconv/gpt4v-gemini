@@ -146,8 +146,7 @@ def draw_window(winwidth, winheight, queue: Queue, frame_queue: Queue):
 
     cv2.destroyAllWindows()
 
-
-stream_url = 'http://192.168.1.3:8080/video'
+stream_url = helpers.get_stream()
 
 if os.path.exists("collage.jpg"):
     os.remove("collage.jpg")

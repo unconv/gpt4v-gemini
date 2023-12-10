@@ -93,7 +93,7 @@ def empty_queue(queue):
     except Empty:
         pass
 
-stream_url = 'http://192.168.1.3:8080/video'
+stream_url = helpers.get_stream()
 
 if os.path.exists("collage.jpg"):
     os.remove("collage.jpg")

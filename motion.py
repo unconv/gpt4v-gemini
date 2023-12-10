@@ -7,7 +7,7 @@ import modules.helpers as helpers
 
 client = OpenAI()
 
-stream_url = 'http://192.168.1.3:8080/video'
+stream_url = helpers.get_stream()
 
 messages = [
     {
