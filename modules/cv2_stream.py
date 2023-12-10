@@ -4,6 +4,7 @@ import math
 import cv2
 
 import modules.helpers as helpers
+from config import config
 
 def make_collage(frames, border=35):
     frame_count = len(frames)
@@ -42,7 +43,10 @@ def make_collage(frames, border=35):
 
     return collage
 
-def detect_changes(stream_url, count=9, min_frames=5, max_frames=200, processing=None, frame_queue=None):
+def detect_changes(stream_url, count=9, min_frames=5, max_frames=None, processing=None, frame_queue=None):
+    if max_frames is None:
+        max_frames = config["automatic_motion_cutoff"]
+
     # Create a VideoCapture object
     cap = cv2.VideoCapture(stream_url)
 
@@ -92,8 +96,8 @@ def detect_changes(stream_url, count=9, min_frames=5, max_frames=200, processing
         change_count = np.sum(thresh != 0)
 
         # If significant change is detected, save the frame
-        if change_count > current_frame.shape[1]*4: # Threshold for change, adjust as needed
-            if change_count > current_frame.shape[1]*30:
+        if change_count > current_frame.shape[1]*config["motion_threshold"]: # Threshold for change, adjust as needed
+            if change_count > current_frame.shape[1]*config["big_motion_threshold"]:
                 big_movement += 1
 
             if processing:
@@ -109,7 +113,7 @@ def detect_changes(stream_url, count=9, min_frames=5, max_frames=200, processing
             still_frame_counter += 1
 
         frame_count = len(frames)
-        if still_frame_counter == 20 or frame_count > max_frames:
+        if still_frame_counter == config["still_frame_threshold"] or frame_count > max_frames:
             if frame_count > min_frames and big_movement >= int(frame_count/30):
                 if frame_count > count:
                     sharp_frames = {}
