@@ -18,7 +18,7 @@ def transcribe(audio_file):
 
     return result["text"].strip()
 
-def live_speech(wait_time=10, transcribe_audio=True, processing=None):
+def live_speech(wait_time=10, transcribe_audio=True, processing=None, ui_queue=None, winwidth=0, winheight=0):
     global ambient_detected
     global speech_volume
 
@@ -66,6 +66,16 @@ def live_speech(wait_time=10, transcribe_audio=True, processing=None):
                         continue
                     with processing.get_lock():
                         processing.value = True
+                if ui_queue:
+                    # show "listening..."
+                    ui_queue.put({
+                        "type": "draw_text",
+                        "args": {
+                            "text": "listening...",
+                            "position": (winwidth//2, int(winheight*0.9)),
+                            "color": (150, 150, 150)
+                        }
+                    })
                 print("Voice detected!")
             recording = True
             frames_recorded = 0
@@ -87,6 +97,17 @@ def live_speech(wait_time=10, transcribe_audio=True, processing=None):
                 yield result
             else:
                 yield "audio.wav"
+
+            if ui_queue:
+                # hide "listening..."
+                ui_queue.put({
+                    "type": "draw_text",
+                    "args": {
+                        "text": "listening...",
+                        "position": (winwidth//2, int(winheight*0.9)),
+                        "color": (0, 0, 0)
+                    }
+                })
 
             frames = []
 

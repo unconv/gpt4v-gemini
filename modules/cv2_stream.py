@@ -14,7 +14,8 @@ def make_collage(frames, border=35):
     per_row = math.ceil(frame_count / rows)
 
     try:
-        image1 = Image.fromarray(frames[0])
+        frame = cv2.cvtColor(frames[0], cv2.COLOR_BGR2RGB)
+        image1 = Image.fromarray(frame)
         collage = Image.new('RGB', (image1.width*per_row+border*(per_row-1), image1.height*rows+border*(per_row-1)))
         collage.paste(image1, (0, 0))
     except OSError:
@@ -26,6 +27,7 @@ def make_collage(frames, border=35):
 
     for i, frame in enumerate(frames[1:]):
         try:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             image = Image.fromarray(frame)
             collage.paste(image, (pos_x, pos_y))
         except OSError:
@@ -40,7 +42,7 @@ def make_collage(frames, border=35):
 
     return collage
 
-def detect_changes(stream_url, count=9, min_frames=5, big_movement_threshold=2, processing=None):
+def detect_changes(stream_url, count=9, min_frames=5, max_frames=200, processing=None, frame_queue=None):
     # Create a VideoCapture object
     cap = cv2.VideoCapture(stream_url)
 
@@ -57,15 +59,13 @@ def detect_changes(stream_url, count=9, min_frames=5, big_movement_threshold=2, 
         exit()
 
     # Convert the first frame to grayscale
-    previous_frame = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
-    previous_frame_rgb = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2RGB)
+    previous_frame_gray = cv2.cvtColor(previous_frame, cv2.COLOR_BGR2GRAY)
 
     # Still frame counter
     still_frame_counter = 0
 
-    # Motion counter
-    motion_counter = 0
-    motions = {"0": []}
+    # Frames
+    frames = []
 
     frame_counter = 0
     big_movement = 0
@@ -76,12 +76,14 @@ def detect_changes(stream_url, count=9, min_frames=5, big_movement_threshold=2, 
         if not ret:
             break
 
+        if frame_queue:
+            frame_queue.put(current_frame)
+
         # Convert current frame to grayscale
         gray_frame = cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)
-        rgb_frame = cv2.cvtColor(current_frame, cv2.COLOR_BGR2RGB)
 
         # Calculate the absolute difference
-        frame_diff = cv2.absdiff(previous_frame, gray_frame)
+        frame_diff = cv2.absdiff(previous_frame_gray, gray_frame)
 
         # Threshold for significant change
         _, thresh = cv2.threshold(frame_diff, 30, 255, cv2.THRESH_BINARY)
@@ -90,26 +92,25 @@ def detect_changes(stream_url, count=9, min_frames=5, big_movement_threshold=2, 
         change_count = np.sum(thresh != 0)
 
         # If significant change is detected, save the frame
-        if change_count > 8_000 and motion_counter: # Threshold for change, adjust as needed
-            if change_count > 80_000:
+        if change_count > current_frame.shape[1]*4: # Threshold for change, adjust as needed
+            if change_count > current_frame.shape[1]*30:
                 big_movement += 1
 
             if processing:
                 with processing.get_lock():
                     processing.value = True
 
-            motions[str(motion_counter)].append(previous_frame_rgb)
-            motions[str(motion_counter)].append(rgb_frame)
+            frames.append(previous_frame)
+            frames.append(current_frame)
             still_frame_counter = 0
         else:
-            if still_frame_counter < 2 and motion_counter:
-                motions[str(motion_counter)].append(rgb_frame)
+            if still_frame_counter < 2:
+                frames.append(current_frame)
             still_frame_counter += 1
 
-        if still_frame_counter == 40:
-            frames = motions[str(motion_counter)]
-            frame_count = len(frames)
-            if frame_count > min_frames and big_movement > big_movement_threshold:
+        frame_count = len(frames)
+        if still_frame_counter == 20 or frame_count > max_frames:
+            if frame_count > min_frames and big_movement >= int(frame_count/30):
                 if frame_count > count:
                     sharp_frames = {}
                     frame_num = 0
@@ -138,13 +139,17 @@ def detect_changes(stream_url, count=9, min_frames=5, big_movement_threshold=2, 
 
                 # Yield new motion
                 yield make_collage(spread_out_frames)
-            motion_counter += 1
-            motions[str(motion_counter)] = []
+
+            if processing:
+                with processing.get_lock():
+                    processing.value = False
+
+            frames = []
             big_movement = 0
 
         # Update the previous frame
-        previous_frame = gray_frame.copy()
-        previous_frame_rgb = rgb_frame.copy()
+        previous_frame_gray = gray_frame.copy()
+        previous_frame = current_frame.copy()
 
         # Display the frame (optional)
         #cv2.imshow('Frame', current_frame)
@@ -159,7 +164,7 @@ def detect_changes(stream_url, count=9, min_frames=5, big_movement_threshold=2, 
     # Close all frames
     cv2.destroyAllWindows()
 
-def stream_frames(stream_url, output_file):
+def stream_frames(stream_url, output_file=None):
     # Create a VideoCapture object
     cap = cv2.VideoCapture(stream_url)
 
@@ -177,9 +182,12 @@ def stream_frames(stream_url, output_file):
 
         frame_number += 1
 
-        if frame_number % 10 == 0:
-            # Save frame
-            cv2.imwrite(output_file, frame)
+        if output_file:
+            if frame_number % 10 == 0:
+                # Save frame
+                cv2.imwrite(output_file, frame)
+        else:
+            yield frame
 
     # Release the video capture object
     cap.release()
